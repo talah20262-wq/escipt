@@ -3,148 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M.NAJM | Crash Simulation</title>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <title>Talla - بوابة المستخدم</title>
+    <!-- Firebase SDKs (v8) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        :root { --neon-green: #39ff14; --dark-bg: #050505; }
-        body { background-color: var(--dark-bg); color: white; font-family: 'Inter', sans-serif; }
-        .neon-border { border: 1px solid var(--neon-green); box-shadow: 0 0 15px rgba(57, 255, 20, 0.2); }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); }
-        .neon-text { color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green); }
-        .btn-neon { background: var(--neon-green); color: black; font-weight: bold; transition: 0.3s; }
-        .btn-neon:hover { box-shadow: 0 0 25px var(--neon-green); transform: translateY(-2px); }
-        .scan-anim { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        body { background-color: #000; color: #fff; font-family: sans-serif; text-align: center; }
+        .container { margin-top: 50px; padding: 20px; border: 1px solid #00f2ff; border-radius: 15px; display: inline-block; }
+        .btn-neon { background: none; border: 2px solid #00f2ff; color: #00f2ff; padding: 10px 25px; cursor: pointer; transition: 0.3s; }
+        .btn-neon:hover { background: #00f2ff; color: #000; box-shadow: 0 0 20px #00f2ff; }
+        input { background: #111; border: 1px solid #444; color: #fff; padding: 8px; margin: 5px; border-radius: 5px; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+<body>
 
-    <!-- Auth Card -->
-    <div id="authSection" class="glass neon-border p-8 rounded-2xl w-full max-max-w-md text-center">
-        <h1 class="text-4xl font-black neon-text mb-6">M.NAJM</h1>
-        <input type="email" id="email" placeholder="البريد الإلكتروني" class="w-full p-3 mb-3 bg-black border border-gray-800 rounded-lg text-white">
-        <input type="password" id="pass" placeholder="كلمة السر" class="w-full p-3 mb-4 bg-black border border-gray-800 rounded-lg text-white">
-        <button onclick="handleAuth('login')" class="btn-neon w-full py-3 rounded-lg mb-2">دخول</button>
-        <button onclick="handleAuth('register')" class="w-full py-3 text-gray-400 hover:text-white transition">إنشاء حساب جديد</button>
+<div class="container">
+    <h2 style="color: #00f2ff;">نظام محاكاة Talla</h2>
+    <div id="auth-section">
+        <input type="email" id="email" placeholder="البريد الإلكتروني">
+        <input type="password" id="password" placeholder="كلمة المرور">
+        <br><br>
+        <button class="btn-neon" onclick="login()">دخول</button>
+        <button class="btn-neon" onclick="register()">تسجيل جديد</button>
     </div>
-
-    <!-- Main Dashboard (Hidden by default) -->
-    <div id="mainDashboard" class="hidden w-full max-w-4xl">
-        <div class="flex justify-between items-center mb-8 glass p-6 rounded-xl neon-border">
-            <div>
-                <p class="text-gray-400">الرصيد الافتراضي</p>
-                <h2 id="userCoins" class="text-3xl font-bold neon-text">0 🪙</h2>
-            </div>
-            <button onclick="showRecharge()" class="btn-neon px-6 py-2 rounded-lg">شحن الرصيد</button>
-        </div>
-
-        <!-- Simulation Engine -->
-        <div class="glass p-10 rounded-2xl neon-border text-center">
-            <h3 class="text-xl mb-4 text-gray-300">محاكي التحطم (CRASH SIM)</h3>
-            <div id="engineDisplay" class="text-6xl font-black mb-8">x1.00</div>
-            <button id="startSim" onclick="runSimulation()" class="btn-neon px-12 py-4 rounded-xl text-xl">بدء المحاكاة (10 عملات)</button>
-        </div>
+    
+    <div id="user-section" style="display:none;">
+        <h3>مرحباً بك: <span id="user-email"></span></h3>
+        <p>رصيدك الحالي: <span id="user-balance" style="color: #00f2ff;">0</span> عملة</p>
+        <button class="btn-neon" onclick="logout()">خروج</button>
     </div>
+</div>
 
-    <script>
-        // Firebase Config (mahmodya-73e03)
-        const firebaseConfig = {
-            apiKey: "https://mahmodya-73e03-default-rtdb.firebaseio.com/", // استبدله بالمفتاح الصحيح من الإعدادات
-            authDomain: "mahmodya-73e03.firebaseapp.com",
-            databaseURL: "https://mahmodya-73e03-default-rtdb.firebaseio.com",
-            projectId: "mahmodya-73e03",
-            storageBucket: "mahmodya-73e03.appspot.com"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.database();
-        const storage = firebase.storage();
+<script>
+    // الإعدادات اللي جبناها سوا
+    const firebaseConfig = {
+        apiKey: "AIzaSyB1N7DfU_VUbNeDzCz2Ke2vc7rPWuPGY_0",
+        authDomain: "mahmodya-73e03.firebaseapp.com",
+        databaseURL: "https://mahmodya-73e03-default-rtdb.firebaseio.com",
+        projectId: "mahmodya-73e03",
+        storageBucket: "mahmodya-73e03.firebasestorage.app",
+        appId: "1:659673740771:web:0a99b82c985072a754dcd6"
+    };
 
-        // 1. Auth Logic
-        async function handleAuth(type) {
-            const email = document.getElementById('email').value;
-            const pass = document.getElementById('pass').value;
-            try {
-                let res;
-                if(type === 'register') {
-                    res = await auth.createUserWithEmailAndPassword(email, pass);
-                    await db.ref('users/' + res.user.uid).set({ 
-                        email, coins: 0, role: 'user', status: 'active', createdAt: Date.now() 
-                    });
-                } else {
-                    res = await auth.signInWithEmailAndPassword(email, pass);
-                }
-                setupDashboard(res.user.uid);
-            } catch(e) { Swal.fire('خطأ', e.message, 'error'); }
-        }
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
 
-        // 2. Real-time Listeners
-        function setupDashboard(uid) {
-            document.getElementById('authSection').classList.add('hidden');
-            document.getElementById('mainDashboard').classList.remove('hidden');
-            db.ref('users/' + uid + '/coins').on('value', snap => {
-                document.getElementById('userCoins').innerText = (snap.val() || 0) + " 🪙";
-            });
-        }
+    // دالة الدخول
+    function login() {
+        const e = document.getElementById('email').value;
+        const p = document.getElementById('password').value;
+        auth.signInWithEmailAndPassword(e, p)
+            .then(res => { alert("تم الدخول بنجاح"); showUser(res.user); })
+            .catch(err => alert(err.message));
+    }
 
-        // 3. Simulation Engine
-        async function runSimulation() {
-            const uid = auth.currentUser.uid;
-            const snap = await db.ref('users/' + uid + '/coins').get();
-            let coins = snap.val() || 0;
+    // دالة التسجيل
+    function register() {
+        const e = document.getElementById('email').value;
+        const p = document.getElementById('password').value;
+        auth.createUserWithEmailAndPassword(e, p).then(res => {
+            db.ref('users/' + res.user.uid).set({ email: e, balance: 100 }); // رصيد افتتاحي
+            alert("تم إنشاء الحساب");
+        }).catch(err => alert(err.message));
+    }
 
-            if(coins < 10) return Swal.fire('رصيد غير كافٍ', 'تحتاج 10 عملات للمحاكاة', 'warning');
+    function showUser(user) {
+        document.getElementById('auth-section').style.display = 'none';
+        document.getElementById('user-section').style.display = 'block';
+        document.getElementById('user-email').innerText = user.email;
+        db.ref('users/' + user.uid + '/balance').on('value', snap => {
+            document.getElementById('user-balance').innerText = snap.val() || 0;
+        });
+    }
 
-            // Deduct coins
-            await db.ref('users/' + uid + '/coins').set(coins - 10);
-
-            const btn = document.getElementById('startSim');
-            const display = document.getElementById('engineDisplay');
-            
-            btn.disabled = true;
-            display.classList.add('scan-anim');
-            display.innerText = "Scanning...";
-
-            setTimeout(() => {
-                const multiplier = (1.10 + Math.random() * 3.40).toFixed(2); // Engine Formula
-                display.classList.remove('scan-anim');
-                display.innerText = "x" + multiplier;
-                display.classList.add('neon-text');
-                btn.disabled = false;
-            }, 3000);
-        }
-
-        // 4. Payment System (Orange Cash)
-        async function showRecharge() {
-            const { value: file } = await Swal.fire({
-                title: 'شحن رصيد (Orange Cash)',
-                html: `ارسل 400 جنيهاً إلى الرقم: <b class="neon-text">01206561893</b><br>وارفع صورة التحويل هنا`,
-                input: 'file',
-                inputAttributes: { 'accept': 'image/*', 'aria-label': 'Upload proof' }
-            });
-
-            if (file) {
-                const ref = storage.ref(`payments/${auth.currentUser.uid}_${Date.now()}`);
-                await ref.put(file);
-                const url = await ref.getDownloadURL();
-                
-                await db.ref('payments').push({
-                    userId: auth.currentUser.uid,
-                    userEmail: auth.currentUser.email,
-                    amount: 400,
-                    imageURL: url,
-                    status: 'pending',
-                    timestamp: Date.now()
-                });
-                Swal.fire('تم الإرسال', 'انتظر مراجعة الإدارة للعملات', 'success');
-            }
-        }
-    </script>
+    function logout() { auth.signOut().then(() => location.reload()); }
+</script>
 </body>
 </html>
