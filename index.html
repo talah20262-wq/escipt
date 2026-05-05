@@ -4,122 +4,203 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M.NAJM | Premium Simulator</title>
+    <!-- Frameworks -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
         :root { --neon: #39ff14; --dark: #050505; }
-        body { background: var(--dark); color: white; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--dark); color: white; font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
         .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); }
         .neon-text { color: var(--neon); text-shadow: 0 0 15px rgba(57, 255, 20, 0.5); }
-        .neon-btn { background: var(--neon); color: #000; font-weight: 900; transition: 0.3s; }
+        .neon-btn { background: var(--neon); color: #000; font-weight: 900; transition: 0.3s; border: none; cursor: pointer; }
         .neon-btn:hover:not(:disabled) { box-shadow: 0 0 25px var(--neon); transform: scale(1.02); }
+        .hidden { display: none; }
+        .loading-ring { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--neon); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="p-4">
+<body class="p-4 md:p-8">
 
-    <!-- Auth Section -->
+    <!-- Auth Section (واجهة تسجيل الدخول) -->
     <div id="auth-section" class="max-w-md mx-auto mt-20 text-center">
         <h1 class="text-5xl font-black neon-text mb-10 italic">M.NAJM</h1>
         <div class="glass p-8 rounded-[2.5rem]">
-            <input id="email" type="email" placeholder="البريد الإلكتروني" class="w-full bg-white/5 p-4 rounded-xl mb-4 border border-white/10 outline-none">
-            <input id="pass" type="password" placeholder="كلمة السر" class="w-full bg-white/5 p-4 rounded-xl mb-6 border border-white/10 outline-none">
-            <button onclick="handleAuth('login')" class="neon-btn w-full py-4 rounded-xl mb-3">دخول</button>
-            <button onclick="handleAuth('register')" class="text-xs text-gray-500">إنشاء حساب جديد</button>
+            <h2 class="text-xl mb-6">تسجيل الدخول للمنصة</h2>
+            <input id="email" type="email" placeholder="البريد الإلكتروني" class="w-full bg-white/5 p-4 rounded-xl mb-4 border border-white/10 outline-none focus:border-neon">
+            <input id="pass" type="password" placeholder="كلمة السر" class="w-full bg-white/5 p-4 rounded-xl mb-6 border border-white/10 outline-none focus:border-neon">
+            <div class="flex gap-2">
+                <button onclick="handleAuth('login')" class="neon-btn flex-1 py-4 rounded-xl uppercase text-xs">دخول</button>
+                <button onclick="handleAuth('register')" class="bg-white/10 flex-1 py-4 rounded-xl uppercase text-xs">إنشاء حساب</button>
+            </div>
         </div>
     </div>
 
-    <!-- Main App Section -->
+    <!-- Main App Section (واجهة التطبيق الرئيسي) -->
     <div id="app-section" class="hidden max-w-lg mx-auto">
+        <!-- Header -->
         <header class="flex justify-between items-center glass p-6 rounded-3xl mb-8">
-            <span id="user-display" class="text-xs font-bold opacity-50">--</span>
-            <div class="text-right">
-                <span class="neon-text font-black text-xl"><i class="fas fa-coins"></i> <span id="coin-count">0</span></span>
+            <div>
+                <span id="user-display" class="text-[10px] text-gray-500 block">--</span>
+                <span class="text-sm font-bold uppercase tracking-tighter">M.NAJM <span class="text-neon">User</span></span>
             </div>
+            <div class="text-right">
+                <div class="text-[10px] text-gray-500 uppercase mb-1">رصيدك الحالي</div>
+                <div class="neon-text font-black text-2xl flex items-center gap-2">
+                    <span id="coin-count">0</span>
+                    <i class="fas fa-coins text-yellow-500 text-sm"></i>
+                </div>
+            </div>
+            <button onclick="firebase.auth().signOut()" class="text-red-500/50 hover:text-red-500 ml-4"><i class="fas fa-power-off"></i></button>
         </header>
 
-        <main class="glass p-12 rounded-[3.5rem] text-center mb-8">
-            <div id="loader" class="hidden py-10 animate-pulse text-neon">ANALYSING...</div>
-            <div id="display">
-                <div id="crash-val" class="text-7xl font-black mb-10">x0.00</div>
-                <button id="start-btn" onclick="runSim()" class="neon-btn w-full py-5 rounded-2xl uppercase">إطلاق المحاكي (10 عملات)</button>
+        <!-- Prediction Box -->
+        <main class="glass p-12 rounded-[3.5rem] text-center mb-8 relative border-t border-white/5">
+            <div id="loader" class="hidden flex flex-col items-center py-10">
+                <div class="loading-ring mb-4"></div>
+                <p class="text-xs text-neon animate-pulse uppercase tracking-widest">Analysing Algorithm...</p>
             </div>
+            <div id="display-area">
+                <i class="fas fa-fighter-jet text-6xl mb-6 opacity-10"></i>
+                <h3 class="text-gray-500 text-xs mb-2 uppercase tracking-widest">Next Flight Prediction</h3>
+                <div id="crash-val" class="text-7xl font-black mb-12">x0.00</div>
+                <button id="start-btn" onclick="runSim()" class="neon-btn w-full py-6 rounded-3xl uppercase tracking-widest text-sm">إطلاق المحاكي (10 عملات)</button>
+            </div>
+            <p class="text-[9px] text-gray-600 mt-6 italic">هذا المحاكي لأغراض الترفيه فقط ولا يقدم توقعات حقيقية.</p>
         </main>
 
-        <div class="glass p-6 rounded-3xl border-r-4 border-orange-500 flex justify-between items-center">
+        <!-- Recharge Card -->
+        <div class="glass p-6 rounded-[2rem] border-r-4 border-orange-600 flex justify-between items-center">
             <div>
-                <h4 class="font-bold text-sm">شحن 1000 عملة</h4>
-                <p class="text-[10px] text-gray-500">أورنج كاش: 01206561893</p>
+                <h4 class="font-bold text-sm">باقة 1000 عملة ذهبية</h4>
+                <p class="text-[10px] text-gray-500 uppercase mt-1">السعر: 400 جنيهاً مصرياً</p>
             </div>
-            <button onclick="recharge()" class="bg-orange-600 px-6 py-2 rounded-xl font-bold text-xs">شحن 400ج</button>
+            <button onclick="recharge()" class="bg-orange-600 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase hover:bg-orange-500 transition">شحن</button>
         </div>
     </div>
 
     <script>
-        const firebaseConfig = { databaseURL: "https://mahmodya-73e03-default-rtdb.firebaseio.com/" };
+        // الإعدادات وربط قاعدة البيانات
+        const firebaseConfig = { 
+            databaseURL: "https://mahmodya-73e03-default-rtdb.firebaseio.com/" 
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const auth = firebase.auth();
 
-        async function handleAuth(t) {
-            const e = document.getElementById('email').value, p = document.getElementById('pass').value;
+        // نظام المصادقة (دخول / تسجيل)
+        async function handleAuth(type) {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('pass').value;
+            if(!email || !pass) return Swal.fire('خطأ', 'يرجى إدخال البيانات المطلوبة', 'error');
+
             try {
-                if(t === 'register') {
-                    const r = await auth.createUserWithEmailAndPassword(e, p);
-                    await db.ref('users/' + r.user.uid).set({ email: e, coins: 0, role: 'user' });
-                } else { await auth.signInWithEmailAndPassword(e, p); }
-            } catch (err) { Swal.fire('خطأ', err.message, 'error'); }
+                if(type === 'register') {
+                    const res = await auth.createUserWithEmailAndPassword(email, pass);
+                    // إنشاء بروفايل المستخدم في قاعدة البيانات
+                    await db.ref('users/' + res.user.uid).set({
+                        email: email,
+                        coins: 0,
+                        role: 'user',
+                        createdAt: Date.now()
+                    });
+                    Swal.fire('تم التسجيل', 'مرحباً بك في منصة نجم', 'success');
+                } else {
+                    await auth.signInWithEmailAndPassword(email, pass);
+                }
+            } catch (err) {
+                Swal.fire('فشل العملية', 'تأكد من البيانات أو الحساب', 'error');
+            }
         }
 
-        auth.onAuthStateChanged(u => {
-            if(u) {
+        // مراقب حالة المستخدم (يفتح التطبيق فور الدفع)
+        auth.onAuthStateChanged(user => {
+            if(user) {
                 document.getElementById('auth-section').classList.add('hidden');
                 document.getElementById('app-section').classList.remove('hidden');
-                document.getElementById('user-display').innerText = u.email;
-                db.ref('users/' + u.uid).on('value', s => {
-                    document.getElementById('coin-count').innerText = s.val().coins;
+                document.getElementById('user-display').innerText = user.email;
+                
+                // تحديث الرصيد لحظياً من قاعدة البيانات
+                db.ref('users/' + user.uid).on('value', snap => {
+                    const data = snap.val();
+                    if(data) {
+                        document.getElementById('coin-count').innerText = data.coins || 0;
+                    }
                 });
+            } else {
+                document.getElementById('auth-section').classList.remove('hidden');
+                document.getElementById('app-section').classList.add('hidden');
             }
         });
 
+        // محاكي الطيران (استهلاك 10 عملات)
         async function runSim() {
-            const uRef = db.ref('users/' + auth.currentUser.uid);
-            const s = await uRef.get();
-            if(s.val().coins < 10) return Swal.fire('رصيد غير كافٍ');
+            const userRef = db.ref('users/' + auth.currentUser.uid);
+            const snap = await userRef.get();
+            const currentCoins = snap.val().coins || 0;
 
-            await uRef.update({ coins: s.val().coins - 10 });
-            document.getElementById('display').classList.add('opacity-10');
-            document.getElementById('loader').classList.remove('hidden');
+            if(currentCoins < 10) {
+                return Swal.fire('رصيد غير كافٍ', 'تحتاج لـ 10 عملات لإتمام التحليل', 'warning');
+            }
 
-            await new Promise(r => setTimeout(r, 3000));
-            const res = (1.1 + Math.random() * 3.4).toFixed(2);
+            // خصم العملات
+            await userRef.update({ coins: currentCoins - 10 });
 
-            document.getElementById('loader').classList.add('hidden');
-            document.getElementById('display').classList.remove('opacity-10');
-            document.getElementById('crash-val').innerText = `x${res}`;
+            // تأثيرات التحميل
+            const display = document.getElementById('display-area');
+            const loader = document.getElementById('loader');
+            const crashVal = document.getElementById('crash-val');
+
+            display.classList.add('hidden');
+            loader.classList.remove('hidden');
+
+            await new Promise(r => setTimeout(r, 3000)); // انتظار 3 ثواني للتحليل
+
+            // الخوارزمية (1.1 + عشوائي * 3.4)
+            const result = (1.1 + Math.random() * 3.4).toFixed(2);
+
+            loader.classList.add('hidden');
+            display.classList.remove('hidden');
+            crashVal.innerText = `x${result}`;
+            crashVal.classList.add('neon-text', 'scale-110');
+            setTimeout(() => crashVal.classList.remove('scale-110'), 300);
         }
 
+        // نظام الشحن (أورنج كاش)
         async function recharge() {
             const { value: file } = await Swal.fire({
-                title: 'شحن العملات',
-                html: 'حول 400ج لـ <b>01206561893</b> وارفع الإيصال:',
-                input: 'file', inputAttributes: { 'accept': 'image/*' }
+                title: 'بوابة الشحن المباشر',
+                html: `
+                    <div class="text-right text-xs">
+                        1. حول مبلغ <b>400 جنيهاً</b> لرقم أورنج كاش:<br>
+                        <center class="my-4 text-2xl font-black text-orange-500">01206561893</center>
+                        2. ارفع صورة الإيصال لتفعيل 1000 عملة:
+                    </div>`,
+                input: 'file',
+                inputAttributes: { 'accept': 'image/*', 'aria-label': 'تحميل الإيصال' },
+                confirmButtonText: 'إرسال للمراجعة',
+                confirmButtonColor: '#ea580c'
             });
+
             if(file) {
-                const r = new FileReader();
-                r.onload = async (e) => {
-                    await db.ref('payments/' + Date.now()).set({
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const paymentId = Date.now();
+                    await db.ref('payments/' + paymentId).set({
                         userId: auth.currentUser.uid,
-                        email: auth.currentUser.email,
+                        userEmail: auth.currentUser.email,
                         image: e.target.result,
-                        status: 'pending'
+                        status: 'pending',
+                        amount: '400 EGP',
+                        createdAt: Date.now()
                     });
-                    Swal.fire('تم الإرسال');
+                    Swal.fire('تم الاستلام', 'جاري مراجعة الإيصال من قبل محمد نجم', 'info');
                 };
-                r.readAsDataURL(file);
+                reader.readAsDataURL(file);
             }
         }
     </script>
