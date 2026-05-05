@@ -2,54 +2,57 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>M.NAJM | Admin Control</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <title>M.NAJM | Admin Panel</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { background: #050505; color: white; font-family: sans-serif; }
-        .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; }
+        body { background: #050505; color: white; font-family: 'Segoe UI'; padding: 20px; }
+        .user-row { background: #111; padding: 15px; border: 1px solid #7000ff; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+        input[type="number"] { width: 80px; padding: 5px; border-radius: 5px; }
+        button { background: #00f3ff; color: black; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
-<body class="p-10">
-    <h1 class="text-3xl font-black text-green-500 mb-10">لوحة إدارة المدفوعات</h1>
-    <div id="list" class="grid md:grid-cols-3 gap-6"></div>
+<body>
+    <h1 style="color: #7000ff;">لوحة تحكم الإدارة - M.NAJM</h1>
+    <div id="usersList">جاري تحميل المستخدمين...</div>
 
     <script>
-        const firebaseConfig = { databaseURL: "https://mahmodya-73e03-default-rtdb.firebaseio.com/" };
-        firebase.initializeApp(firebaseConfig);
+        // نفس الـ config الخاص بـ Firebase هنا
+        const config = { /* ضع بياناتك هنا */ };
+        firebase.initializeApp(config);
         const db = firebase.database();
 
-        db.ref('payments').on('value', snap => {
-            const data = snap.val(), container = document.getElementById('list');
-            container.innerHTML = "";
-            if(!data) return;
-            Object.keys(data).forEach(id => {
-                if(data[id].status === 'pending') {
-                    container.innerHTML += `
-                    <div class="card p-5">
-                        <div class="text-xs text-gray-500 mb-2">${data[id].email}</div>
-                        <img src="${data[id].image}" class="w-full h-40 object-cover rounded-lg mb-4" onclick="window.open(this.src)">
-                        <div class="flex gap-2">
-                            <button onclick="approve('${id}', '${data[id].userId}')" class="flex-1 bg-green-600 py-2 rounded-lg font-bold">قبول</button>
-                            <button onclick="reject('${id}')" class="flex-1 bg-red-900 py-2 rounded-lg">رفض</button>
+        // جلب جميع المستخدمين وعرضهم
+        db.ref('users').on('value', (snapshot) => {
+            const list = document.getElementById('usersList');
+            list.innerHTML = "";
+            snapshot.forEach((child) => {
+                const user = child.val();
+                const userId = child.key;
+                list.innerHTML += `
+                    <div class="user-row">
+                        <div>
+                            <strong>${user.email}</strong> <br>
+                            الرصيد الحالي: <span style="color:#00f3ff">${user.coins || 0}</span>
                         </div>
-                    </div>`;
-                }
+                        <div>
+                            <input type="number" id="input-${userId}" placeholder="قيمة">
+                            <button onclick="updateCoins('${userId}')">إضافة عملات</button>
+                        </div>
+                    </div>
+                `;
             });
         });
 
-        async function approve(pid, uid) {
-            const uRef = db.ref('users/' + uid + '/coins');
-            const s = await uRef.get();
-            await uRef.set((s.val() || 0) + 1000);
-            await db.ref('payments/' + pid).update({ status: 'approved' });
-            alert('تم الشحن!');
-        }
-
-        async function reject(pid) {
-            await db.ref('payments/' + pid).update({ status: 'rejected' });
+        // وظيفة تعديل العملات
+        function updateCoins(uid) {
+            const amount = document.getElementById('input-' + uid).value;
+            if(!amount) return alert("دخل القيمة");
+            
+            db.ref('users/' + uid + '/coins').transaction((current) => {
+                return (current || 0) + parseInt(amount);
+            }).then(() => alert("تم التحديث بنجاح!"));
         }
     </script>
 </body>
