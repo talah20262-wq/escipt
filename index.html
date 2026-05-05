@@ -3,40 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Talla - بوابة المستخدم</title>
-    <!-- Firebase SDKs (v8) -->
+    <title>M.NAJM Platform</title>
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <style>
-        body { background-color: #000; color: #fff; font-family: sans-serif; text-align: center; }
-        .container { margin-top: 50px; padding: 20px; border: 1px solid #00f2ff; border-radius: 15px; display: inline-block; }
-        .btn-neon { background: none; border: 2px solid #00f2ff; color: #00f2ff; padding: 10px 25px; cursor: pointer; transition: 0.3s; }
-        .btn-neon:hover { background: #00f2ff; color: #000; box-shadow: 0 0 20px #00f2ff; }
-        input { background: #111; border: 1px solid #444; color: #fff; padding: 8px; margin: 5px; border-radius: 5px; }
+        :root { --neon: #00f2ff; --purple: #7000ff; --bg: #050505; }
+        body { background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
+        .card { background: #111; border: 1px solid #222; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
+        h2 { color: var(--neon); text-shadow: 0 0 10px var(--neon); }
+        .btn { background: none; border: 2px solid var(--neon); color: var(--neon); padding: 10px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+        .btn:hover { background: var(--neon); color: #000; box-shadow: 0 0 15px var(--neon); }
+        input[type="text"], input[type="password"], input[type="email"] { width: 90%; padding: 10px; margin: 10px 0; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 5px; }
+        
+        /* Crash Engine Style */
+        #crash-box { height: 200px; display: flex; align-items: center; justify-content: center; font-size: 3rem; color: var(--neon); font-weight: bold; border: 2px dashed #333; border-radius: 15px; margin: 20px 0; }
+        .balance-badge { background: var(--purple); padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2 style="color: #00f2ff;">نظام محاكاة Talla</h2>
-    <div id="auth-section">
+    <div id="auth-section" class="card">
+        <h2>M.NAJM | دخول</h2>
         <input type="email" id="email" placeholder="البريد الإلكتروني">
-        <input type="password" id="password" placeholder="كلمة المرور">
-        <br><br>
-        <button class="btn-neon" onclick="login()">دخول</button>
-        <button class="btn-neon" onclick="register()">تسجيل جديد</button>
+        <input type="password" id="pass" placeholder="كلمة المرور">
+        <button class="btn" onclick="authAction('login')">دخول</button>
+        <button class="btn" style="border-color:#555; margin-top:10px;" onclick="authAction('reg')">إنشاء حساب</button>
     </div>
-    
-    <div id="user-section" style="display:none;">
-        <h3>مرحباً بك: <span id="user-email"></span></h3>
-        <p>رصيدك الحالي: <span id="user-balance" style="color: #00f2ff;">0</span> عملة</p>
-        <button class="btn-neon" onclick="logout()">خروج</button>
+
+    <div id="main-platform" style="display:none;">
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>لوحة التحكم</h2>
+                <span class="balance-badge">الرصيد: <span id="balance">0</span> عملة</span>
+            </div>
+            
+            <!-- Crash Engine -->
+            <div id="crash-box">1.00x</div>
+            <button class="btn" id="start-btn" onclick="startSimulation()">بدء المحاكاة (تكلفتها 10 عملات)</button>
+        </div>
+
+        <!-- Payment Flow -->
+        <div class="card" style="border-color: var(--purple);">
+            <h3>شحن الرصيد 💳</h3>
+            <p style="font-size: 0.8rem; color: #aaa;">حول المبلغ لـ Orange Cash: <br> <strong>01211056530</strong></p>
+            <input type="file" id="proof-img" accept="image/*">
+            <button class="btn" style="border-color: var(--purple); color: var(--purple);" onclick="uploadProof()">إرسال إثبات الدفع</button>
+        </div>
+        <button onclick="firebase.auth().signOut()" style="background:none; color:red; border:none; cursor:pointer;">خروج</button>
     </div>
-</div>
 
 <script>
-    // الإعدادات اللي جبناها سوا
+    // Config M.NAJM
     const firebaseConfig = {
         apiKey: "AIzaSyB1N7DfU_VUbNeDzCz2Ke2vc7rPWuPGY_0",
         authDomain: "mahmodya-73e03.firebaseapp.com",
@@ -45,40 +65,83 @@
         storageBucket: "mahmodya-73e03.firebasestorage.app",
         appId: "1:659673740771:web:0a99b82c985072a754dcd6"
     };
-
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.database();
+    const storage = firebase.storage();
 
-    // دالة الدخول
-    function login() {
+    let currentBalance = 0;
+
+    auth.onAuthStateChanged(user => {
+        if(user) {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('main-platform').style.display = 'block';
+            db.ref('users/' + user.uid).on('value', s => {
+                currentBalance = s.val()?.balance || 0;
+                document.getElementById('balance').innerText = currentBalance;
+            });
+        } else {
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('main-platform').style.display = 'none';
+        }
+    });
+
+    function authAction(type) {
         const e = document.getElementById('email').value;
-        const p = document.getElementById('password').value;
-        auth.signInWithEmailAndPassword(e, p)
-            .then(res => { alert("تم الدخول بنجاح"); showUser(res.user); })
-            .catch(err => alert(err.message));
+        const p = document.getElementById('pass').value;
+        if(type === 'reg') {
+            auth.createUserWithEmailAndPassword(e,p).then(res => {
+                db.ref('users/' + res.user.uid).set({ email: e, balance: 10 });
+            }).catch(err => alert(err.message));
+        } else {
+            auth.signInWithEmailAndPassword(e,p).catch(err => alert(err.message));
+        }
     }
 
-    // دالة التسجيل
-    function register() {
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('password').value;
-        auth.createUserWithEmailAndPassword(e, p).then(res => {
-            db.ref('users/' + res.user.uid).set({ email: e, balance: 100 }); // رصيد افتتاحي
-            alert("تم إنشاء الحساب");
-        }).catch(err => alert(err.message));
+    // Simulation Engine Logic
+    function startSimulation() {
+        if(currentBalance < 10) return alert("رصيدك غير كافٍ!");
+        
+        const btn = document.getElementById('start-btn');
+        btn.disabled = true;
+        db.ref('users/' + auth.currentUser.uid).update({ balance: currentBalance - 10 });
+
+        let multiplier = 1.00;
+        const crashAt = (Math.random() * 5 + 1).toFixed(2);
+        
+        const timer = setInterval(() => {
+            multiplier += 0.05;
+            document.getElementById('crash-box').innerText = multiplier.toFixed(2) + "x";
+            
+            if(multiplier >= crashAt) {
+                clearInterval(timer);
+                document.getElementById('crash-box').style.color = "red";
+                document.getElementById('crash-box').innerText = "CRASHED! " + multiplier.toFixed(2) + "x";
+                setTimeout(() => {
+                    document.getElementById('crash-box').style.color = "var(--neon)";
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }, 100);
     }
 
-    function showUser(user) {
-        document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('user-section').style.display = 'block';
-        document.getElementById('user-email').innerText = user.email;
-        db.ref('users/' + user.uid + '/balance').on('value', snap => {
-            document.getElementById('user-balance').innerText = snap.val() || 0;
+    // Upload Payment Proof
+    function uploadProof() {
+        const file = document.getElementById('proof-img').files[0];
+        if(!file) return alert("اختر صورة الإثبات أولاً");
+        
+        const ref = storage.ref('payments/' + auth.currentUser.uid + '_' + Date.now());
+        ref.put(file).then(snapshot => snapshot.ref.getDownloadURL()).then(url => {
+            db.ref('paymentRequests').push({
+                uid: auth.currentUser.uid,
+                email: auth.currentUser.email,
+                img: url,
+                status: 'pending',
+                date: new Date().toLocaleString()
+            });
+            alert("تم إرسال الطلب، انتظر مراجعة الإدارة");
         });
     }
-
-    function logout() { auth.signOut().then(() => location.reload()); }
 </script>
 </body>
 </html>
