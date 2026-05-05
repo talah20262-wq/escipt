@@ -2,207 +2,296 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M.NAJM | Radar System Armed</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>M.NAJM | System Armed</title>
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <style>
-        :root { --neon-green: #39ff14; --cyber-red: #ff003c; --deep-space: #050505; --fuel-gold: #ffcc00; }
-        body { background: var(--deep-space); color: #fff; font-family: 'Courier New', Courier, monospace; margin: 0; overflow-x: hidden; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        :root {
+            --neon-green: #39ff14; --cyber-red: #ff003c; --bg: #050505;
+            --fuel-gold: #ffcc00; --glass: rgba(255, 255, 255, 0.03);
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            background: var(--bg); color: #fff; font-family: 'Segoe UI', Consolas, monospace;
+            margin: 0; overflow: hidden; height: 100vh; display: flex; align-items: center; justify-content: center;
+        }
+        body::after {
+            content:""; position:fixed; width:100%; height:100%; z-index: -1;
+            background: radial-gradient(var(--neon-green) 1px, transparent 1px); background-size: 40px 40px; opacity: 0.05;
+        }
+
+        /* UI Components */
+        .glass-card {
+            background: var(--glass); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px; padding: 25px; width: 95%; max-width: 480px; position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6); transition: 0.4s;
+        }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(57,255,20,0.2); padding-bottom: 15px; margin-bottom: 20px; }
+        .fuel-badge { background: #000; border: 1px solid var(--fuel-gold); color: var(--fuel-gold); padding: 5px 12px; border-radius: 50px; font-weight: bold; box-shadow: 0 0 10px var(--fuel-gold); }
+
+        /* Radar & Flight Engine */
+        #radar-screen {
+            height: 280px; background: repeating-radial-gradient(circle, #001a00 0%, #001a00 8%, #002200 9%);
+            border: 1px solid var(--neon-green); border-radius: 20px; position: relative; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 20px;
+        }
+        #plane {
+            position: absolute; bottom: 20px; right: 20px; font-size: 35px; z-index: 5;
+            transition: all 0.1s linear; filter: drop-shadow(0 0 10px var(--neon-green));
+        }
+        #multiplier { font-size: 4rem; font-weight: 900; color: var(--neon-green); text-shadow: 0 0 20px var(--neon-green); z-index: 10; }
         
-        /* 🌌 خلفية النجوم المتحركة */
-        body::after { content:""; position:fixed; width:100%; height:100%; background:radial-gradient(var(--neon-green) 1px, transparent 1px); background-size:40px 40px; opacity:0.05; z-index: -1; }
+        /* Animation Classes */
+        .shake { animation: shake 0.3s; }
+        @keyframes shake {
+            0% { transform: translate(0); } 25% { transform: translate(4px, -4px); }
+            50% { transform: translate(-4px, 4px); } 100% { transform: translate(0); }
+        }
+        .flicker { animation: flicker 0.2s infinite; }
+        @keyframes flicker { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        .radar-container { background: rgba(0, 20, 0, 0.9); border: 2px solid var(--neon-green); border-radius: 20px; padding: 30px; width: 90%; max-width: 500px; box-shadow: 0 0 50px rgba(57, 255, 20, 0.2); position: relative; text-align: center; }
+        /* Buttons & Inputs */
+        .btn-launch {
+            background: none; border: 2px solid var(--neon-green); color: var(--neon-green);
+            padding: 18px; width: 100%; border-radius: 15px; font-size: 1.1rem; font-weight: bold;
+            cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 2px;
+        }
+        .btn-launch:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 30px var(--neon-green); transform: scale(1.02); }
+        .btn-launch:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* 🔥 Header */
-        .header-text { font-size: 0.8rem; color: var(--neon-green); text-transform: uppercase; margin-bottom: 20px; border-bottom: 1px solid rgba(57, 255, 20, 0.3); padding-bottom: 10px; }
+        input { width: 100%; background: #000; border: 1px solid #333; padding: 12px; border-radius: 10px; color: #fff; margin-bottom: 15px; outline: none; }
+        input:focus { border-color: var(--neon-green); }
 
-        /* 💰 Fuel Balance Style */
-        .fuel-badge { position: absolute; top: -20px; right: 20px; background: #000; border: 2px solid var(--fuel-gold); color: var(--fuel-gold); padding: 5px 15px; border-radius: 50px; font-weight: bold; box-shadow: 0 0 15px var(--fuel-gold); }
-
-        /* ✈️ Plane Animation Area */
-        #radar-screen { height: 250px; background: repeating-radial-gradient(circle, #001a00 0%, #001a00 10%, #002200 11%); border: 1px solid var(--neon-green); border-radius: 15px; margin: 20px 0; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        #plane { position: absolute; bottom: 20px; right: 20px; font-size: 40px; transition: all 2s cubic-bezier(0.1, 0.7, 1.0, 0.1); filter: drop-shadow(0 0 10px var(--neon-green)); }
-        #multiplier-text { font-size: 3.5rem; font-weight: 900; color: var(--neon-green); text-shadow: 0 0 20px var(--neon-green); z-index: 10; }
-
-        /* 🎬 UI Classes */
-        .flash { animation: flash 0.3s 3; }
-        @keyframes flash { 0% { opacity:1; } 50% { opacity:0.2; } 100% { opacity:1; } }
-
-        .btn-launch { background: none; border: 2px solid var(--neon-green); color: var(--neon-green); padding: 15px; width: 100%; border-radius: 10px; font-size: 1.2rem; cursor: pointer; transition: 0.3s; font-weight: bold; text-transform: uppercase; }
-        .btn-launch:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 30px var(--neon-green); }
-
-        input { background: #000; border: 1px solid var(--neon-green); color: var(--neon-green); padding: 10px; width: 80%; border-radius: 5px; margin: 10px 0; outline: none; }
-        
         /* Admin Overlay */
-        #admin-panel { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; padding: 20px; overflow-y: auto; box-sizing: border-box; }
+        #admin-panel { display: none; position: fixed; inset: 0; background: #000; z-index: 1000; padding: 20px; overflow-y: auto; }
+        .admin-card { background: #111; border: 1px solid var(--cyber-red); padding: 15px; margin-bottom: 15px; border-radius: 15px; }
     </style>
 </head>
 <body>
 
-    <!-- الدخول -->
-    <div id="auth-box" class="radar-container">
-        <div class="header-text">System Armed. Radar Activated.</div>
-        <input type="email" id="email" placeholder="Email Address">
-        <input type="password" id="pass" placeholder="Password">
-        <button class="btn-launch" onclick="handleAuth()">Access System</button>
+    <!-- 1. AUTH VIEW -->
+    <div id="view-auth" class="glass-card">
+        <h1>M.NAJM</h1>
+        <p style="text-align:center; color: var(--neon-green); font-size: 0.8rem;">SYSTEM ARMED. ACCESS REQUIRED.</p>
+        <input type="email" id="auth-email" placeholder="Email Address">
+        <input type="password" id="auth-pass" placeholder="Password">
+        <button class="btn-launch" onclick="app.handleAuth()">Launch Sequence</button>
     </div>
 
-    <!-- اللعبة الرئيسية -->
-    <div id="app-box" class="radar-container" style="display: none;">
-        <div class="fuel-badge">Fuel Balance: <span id="user-fuel">0</span> L</div>
-        <div class="header-text" id="status-line">Scanning the Sky...</div>
+    <!-- 2. DASHBOARD VIEW -->
+    <div id="view-dash" class="glass-card" style="display: none;">
+        <div class="header">
+            <span style="color:var(--neon-green); font-weight:bold;">M.NAJM Engine</span>
+            <div class="fuel-badge">FUEL: <span id="val-fuel">0</span> L</div>
+        </div>
+
+        <p id="status-text" style="text-align:center; font-size: 0.7rem; color: var(--neon-green);">System Ready.</p>
         
         <div id="radar-screen">
-            <div id="multiplier-text">1.00x</div>
+            <div id="multiplier">1.00x</div>
             <div id="plane">✈️</div>
         </div>
 
-        <button id="start-btn" class="btn-launch" onclick="launchRadar()">ابدأ الجولة الآن ⚡</button>
-        
-        <div style="margin-top:20px; border-top:1px solid var(--neon-green); padding-top:15px;">
-            <p style="font-size:10px; color:var(--fuel-gold);">Upgrade Your Fuel — Keep Flying 💸</p>
-            <p style="font-size:12px;">Orange Cash: 01206561893</p>
-            <input type="file" id="fuel-proof" style="font-size:10px;">
-            <button class="btn-launch" style="padding:5px; font-size:0.8rem; border-color:var(--fuel-gold); color:var(--fuel-gold);" onclick="recharge()">ارسال الإثبات</button>
+        <button id="btn-run" class="btn-launch" onclick="app.startFlight()">ابدأ الجولة الآن ⚡</button>
+
+        <!-- Payment Modal Trigger -->
+        <div style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px; text-align:center;">
+            <p style="color:var(--fuel-gold); font-size: 0.8rem;">Fuel Depleted? Upgrade Required ⛽</p>
+            <button onclick="app.togglePayment(true)" style="background:none; border:none; color:#fff; text-decoration:underline; cursor:pointer;">اشحن الوقود وارجع للسماء 💸</button>
         </div>
 
-        <button id="admin-portal" class="btn-launch" style="margin-top:10px; display:none;" onclick="toggleAdmin(true)">Admin Center 👑</button>
+        <button id="admin-portal" class="btn-launch" style="margin-top:10px; display:none; border-color:#fff; color:#fff;" onclick="app.toggleAdmin(true)">Admin Center 👑</button>
     </div>
 
-    <!-- لوحة الأدمن -->
+    <!-- 3. PAYMENT MODAL -->
+    <div id="modal-pay" class="glass-card" style="display:none; position:fixed; z-index:500;">
+        <h2>Upgrade Fuel</h2>
+        <p>Transfer to Orange Cash: <br><strong style="color:var(--fuel-gold); font-size: 1.2rem;">01206561893</strong></p>
+        <p style="font-size: 0.7rem;">Upload Screenshot for verification</p>
+        <input type="file" id="pay-file" accept="image/*">
+        <button class="btn-launch" onclick="app.uploadProof()">Submit Proof</button>
+        <button onclick="app.togglePayment(false)" style="background:none; border:none; color:red; margin-top:10px; cursor:pointer;">Cancel</button>
+    </div>
+
+    <!-- 4. ADMIN PANEL -->
     <div id="admin-panel">
-        <h2 style="color:var(--cyber-red)">Radar Management Dashboard</h2>
-        <button onclick="toggleAdmin(false)" style="color:#fff; background:var(--cyber-red); border:none; padding:10px; border-radius:5px;">إغلاق</button>
-        <div id="req-list" style="margin-top:20px;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h1 style="color:var(--cyber-red)">Command Center</h1>
+            <button onclick="app.toggleAdmin(false)" style="color:#fff; background:none; border:1px solid #fff; padding:5px 15px; border-radius:5px;">Exit</button>
+        </div>
+        <div id="admin-req-list"></div>
     </div>
 
 <script>
-    // Config Firebase
-    const firebaseConfig = {
+// M.NAJM CORE ENGINE
+const app = {
+    config: {
         apiKey: "AIzaSyB1N7DfU_VUbNeDzCz2Ke2vc7rPWuPGY_0", //
         authDomain: "mahmodya-73e03.firebaseapp.com",
         databaseURL: "https://mahmodya-73e03-default-rtdb.firebaseio.com",
         projectId: "mahmodya-73e03",
         storageBucket: "mahmodya-73e03.firebasestorage.app",
         appId: "1:659673740771:web:0a99b82c985072a754dcd6"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
-    const storage = firebase.storage();
+    },
+    ownerEmail: "talah2026.2@gmail.com", //
+    currentFuel: 0,
 
-    const OWNER = "talah2026.2@gmail.com";
-    let currentFuel = 0;
+    init() {
+        firebase.initializeApp(this.config);
+        this.observeAuth();
+    },
 
-    // Monitoring Auth
-    auth.onAuthStateChanged(user => {
-        if(user) {
-            document.getElementById('auth-box').style.display = 'none';
-            document.getElementById('app-box').style.display = 'block';
-            if(user.email === OWNER) document.getElementById('admin-portal').style.display = 'block';
-            db.ref('users/' + user.uid).on('value', s => {
-                currentFuel = s.val()?.balance || 0;
-                document.getElementById('user-fuel').innerText = currentFuel;
-            });
-        }
-    });
-
-    function handleAuth() {
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('pass').value;
-        auth.signInWithEmailAndPassword(e, p).catch(() => {
-            auth.createUserWithEmailAndPassword(e, p).then(r => db.ref('users/'+r.user.uid).set({email:e, balance:50}));
+    observeAuth() {
+        firebase.auth().onAuthStateChanged(user => {
+            if(user) {
+                this.switchView('view-dash');
+                if(user.email === this.ownerEmail) document.getElementById('admin-portal').style.display = 'block';
+                this.syncUserData(user.uid);
+            } else {
+                this.switchView('view-auth');
+            }
         });
-    }
+    },
 
-    // 🔥 Typing Effect
-    function typeText(text, el){
-        let i = 0; el.innerText = "";
-        const interval = setInterval(()=>{
-            el.innerText += text[i]; i++;
-            if(i >= text.length) clearInterval(interval);
-        }, 40);
-    }
+    syncUserData(uid) {
+        firebase.database().ref('users/' + uid).on('value', s => {
+            this.currentFuel = s.val()?.balance || 0;
+            document.getElementById('val-fuel').innerText = this.currentFuel;
+        });
+    },
 
-    // ✈️ Fly Logic
-    function launchRadar() {
-        if(currentFuel < 10) {
-            typeText("انتهى الوقود… لازم تعبي قبل الرحلة الجاية ⛽", document.getElementById('status-line'));
+    handleAuth() {
+        const e = document.getElementById('auth-email').value;
+        const p = document.getElementById('auth-pass').value;
+        firebase.auth().signInWithEmailAndPassword(e,p).catch(() => {
+            firebase.auth().createUserWithEmailAndPassword(e,p).then(r => {
+                firebase.database().ref('users/'+r.user.uid).set({email:e, balance:50});
+            });
+        });
+    },
+
+    switchView(id) {
+        document.querySelectorAll('.glass-card').forEach(c => c.style.display = 'none');
+        document.getElementById(id).style.display = 'block';
+    },
+
+    // 🔥 FLIGHT SYSTEM
+    startFlight() {
+        if(this.currentFuel < 10) {
+            this.updateStatus("Fuel Empty — Recharge Required ⛽");
             return;
         }
 
-        const btn = document.getElementById('start-btn');
-        const plane = document.getElementById("plane");
-        const display = document.getElementById("multiplier-text");
-        const status = document.getElementById("status-line");
-
+        const btn = document.getElementById('btn-run');
+        const plane = document.getElementById('plane');
+        const display = document.getElementById('multiplier');
+        const screen = document.getElementById('radar-screen');
+        
         btn.disabled = true;
-        db.ref('users/'+auth.currentUser.uid).update({balance: currentFuel - 10});
+        firebase.database().ref('users/'+firebase.auth().currentUser.uid).update({balance: this.currentFuel - 10});
 
-        typeText("AI Engine Processing...", status);
+        this.updateStatus("Scanning Airspace...");
         plane.style.transform = `translate(0, 0) scale(1)`;
-        display.classList.remove('flash');
+        display.classList.remove('flicker');
+        screen.classList.remove('shake');
 
         let mult = 1.00;
-        let crash = (1.1 + Math.random()*3.4).toFixed(2);
+        let crashPoint = (1.1 + Math.random() * 3.8).toFixed(2); //
 
-        const timer = setInterval(() => {
-            mult += 0.03;
+        const interval = setInterval(() => {
+            mult += 0.04;
             display.innerText = mult.toFixed(2) + "x";
             
-            // Plane Movement
-            plane.style.transform = `translate(-${mult*40}px, -${mult*40}px) scale(${1 + mult/10})`;
+            // Curve Movement
+            const x = mult * 45;
+            const y = mult * mult * 8;
+            const scale = 1 + (mult / 8);
+            plane.style.transform = `translate(-${x}px, -${y}px) scale(${scale})`;
 
-            if(mult >= crash) {
-                clearInterval(timer);
-                display.innerText = `LOCKED: ${mult.toFixed(2)}x`;
-                display.classList.add('flash');
-                typeText(`Target Achieved ⚡ x${mult.toFixed(2)}`, status);
-                setTimeout(() => { btn.disabled = false; }, 2000);
+            if(mult >= crashPoint) {
+                clearInterval(interval);
+                this.onCrash(display, screen, mult);
+                btn.disabled = false;
             }
         }, 100);
-    }
+    },
 
-    function recharge() {
-        const f = document.getElementById('fuel-proof').files[0];
-        if(!f) return alert("Upload proof!");
-        storage.ref(`fuel/${Date.now()}`).put(f).then(s => s.ref.getDownloadURL()).then(url => {
-            db.ref('requests').push({uid: auth.currentUser.uid, email: auth.currentUser.email, img: url, status: 'p'});
-            alert("Fueling request sent to command center.");
-        });
-    }
+    onCrash(display, screen, val) {
+        display.innerText = `LOCKED: x${val.toFixed(2)}`;
+        display.classList.add('flicker');
+        screen.classList.add('shake');
+        this.updateStatus(`Flight Locked at x${val.toFixed(2)}`);
+    },
 
-    function toggleAdmin(v) {
-        document.getElementById('admin-panel').style.display = v ? 'block' : 'none';
-        if(v) {
-            db.ref('requests').on('value', snap => {
-                const list = document.getElementById('req-list');
-                list.innerHTML = '';
-                snap.forEach(c => {
-                    const r = c.val();
-                    if(r.status === 'p') {
-                        list.innerHTML += `<div style="background:#111; border:1px solid var(--neon-green); padding:10px; margin-bottom:10px;">
-                            <p>${r.email}</p>
-                            <img src="${r.img}" style="width:100%; max-height:200px; object-fit:contain;">
-                            <input type="number" id="amt-${c.key}" placeholder="Fuel Amount">
-                            <button class="btn-launch" onclick="approve('${c.key}','${r.uid}')">Approve Fuel</button>
-                        </div>`;
-                    }
-                });
+    updateStatus(txt) {
+        const el = document.getElementById('status-text');
+        let i = 0; el.innerText = "";
+        const timer = setInterval(() => {
+            el.innerText += txt[i]; i++;
+            if(i >= txt.length) clearInterval(timer);
+        }, 30);
+    },
+
+    // 💳 PAYMENT SYSTEM
+    togglePayment(v) { document.getElementById('modal-pay').style.display = v ? 'block' : 'none'; },
+    
+    uploadProof() {
+        const file = document.getElementById('pay-file').files[0];
+        if(!file) return alert("Select image first!");
+        const uid = firebase.auth().currentUser.uid;
+        const ref = firebase.storage().ref(`proofs/${uid}_${Date.now()}`);
+        
+        this.updateStatus("Awaiting Verification...");
+        ref.put(file).then(s => s.ref.getDownloadURL()).then(url => {
+            firebase.database().ref('requests').push({
+                uid: uid, email: firebase.auth().currentUser.email,
+                img: url, status: 'pending', time: Date.now()
             });
-        }
-    }
+            alert("Awaiting Verification...");
+            this.togglePayment(false);
+        });
+    },
 
-    function approve(k, u) {
-        const amt = document.getElementById('amt-'+k).value;
-        db.ref('users/'+u+'/balance').transaction(c => (c||0) + parseInt(amt));
-        db.ref('requests/'+k).update({status: 'a'});
-        alert("Fuel added!");
-    }
+    // 👑 ADMIN SYSTEM
+    toggleAdmin(v) {
+        document.getElementById('admin-panel').style.display = v ? 'block' : 'none';
+        if(v) this.loadAdminRequests();
+    },
+
+    loadAdminRequests() {
+        firebase.database().ref('requests').on('value', snap => {
+            const list = document.getElementById('admin-req-list');
+            list.innerHTML = '';
+            snap.forEach(child => {
+                const r = child.val();
+                if(r.status === 'pending') {
+                    list.innerHTML += `
+                        <div class="admin-card">
+                            <p>${r.email}</p>
+                            <img src="${r.img}" style="width:100px; cursor:pointer;" onclick="window.open('${r.img}')">
+                            <div style="margin-top:10px;">
+                                <button onclick="app.adminApprove('${child.key}','${r.uid}')" style="background:green;color:#fff;border:none;padding:5px 15px;border-radius:5px;">Approve (+1000)</button>
+                                <button onclick="app.adminReject('${child.key}')" style="background:red;color:#fff;border:none;padding:5px 15px;border-radius:5px;margin-right:10px;">Reject</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        });
+    },
+
+    adminApprove(key, uid) {
+        firebase.database().ref('users/'+uid+'/balance').transaction(c => (c||0) + 1000);
+        firebase.database().ref('requests/'+key).update({status: 'approved'});
+    },
+    adminReject(key) { firebase.database().ref('requests/'+key).update({status: 'rejected'}); }
+};
+
+app.init();
 </script>
 </body>
 </html>
