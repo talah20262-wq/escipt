@@ -2,57 +2,58 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>M.NAJM | Admin Panel</title>
+    <title>M.NAJM | Admin Control</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #050505; color: white; font-family: 'Segoe UI'; padding: 20px; }
-        .user-row { background: #111; padding: 15px; border: 1px solid #7000ff; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
-        input[type="number"] { width: 80px; padding: 5px; border-radius: 5px; }
-        button { background: #00f3ff; color: black; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
+        body { background: #050505; color: white; }
+        .admin-card { background: #111; border: 1px solid #39ff14; }
     </style>
 </head>
-<body>
-    <h1 style="color: #7000ff;">لوحة تحكم الإدارة - M.NAJM</h1>
-    <div id="usersList">جاري تحميل المستخدمين...</div>
+<body class="p-8">
+    <h1 class="text-3xl font-black text-[#39ff14] mb-8">إدارة نظام M.NAJM</h1>
+
+    <div id="paymentsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Transactions will appear here -->
+    </div>
 
     <script>
-        // نفس الـ config الخاص بـ Firebase هنا
-        const config = { /* ضع بياناتك هنا */ };
-        firebase.initializeApp(config);
+        // Use your config here
+        firebase.initializeApp({ /* SAME CONFIG AS ABOVE */ });
         const db = firebase.database();
 
-        // جلب جميع المستخدمين وعرضهم
-        db.ref('users').on('value', (snapshot) => {
-            const list = document.getElementById('usersList');
+        // 1. Listen for Pending Payments
+        db.ref('payments').orderByChild('status').equalTo('pending').on('value', snap => {
+            const list = document.getElementById('paymentsList');
             list.innerHTML = "";
-            snapshot.forEach((child) => {
-                const user = child.val();
-                const userId = child.key;
+            snap.forEach(child => {
+                const p = child.val();
                 list.innerHTML += `
-                    <div class="user-row">
-                        <div>
-                            <strong>${user.email}</strong> <br>
-                            الرصيد الحالي: <span style="color:#00f3ff">${user.coins || 0}</span>
-                        </div>
-                        <div>
-                            <input type="number" id="input-${userId}" placeholder="قيمة">
-                            <button onclick="updateCoins('${userId}')">إضافة عملات</button>
+                    <div class="admin-card p-5 rounded-xl">
+                        <p class="text-sm text-gray-400">المستخدم: ${p.userEmail}</p>
+                        <img src="${p.imageURL}" class="w-full h-40 object-cover my-3 rounded-lg cursor-pointer" onclick="window.open('${p.imageURL}')">
+                        <div class="flex gap-2">
+                            <button onclick="approvePayment('${child.key}', '${p.userId}')" class="bg-green-600 flex-1 py-2 rounded-lg">قبول (1000 عملة)</button>
+                            <button onclick="rejectPayment('${child.key}')" class="bg-red-600 flex-1 py-2 rounded-lg">رفض</button>
                         </div>
                     </div>
                 `;
             });
         });
 
-        // وظيفة تعديل العملات
-        function updateCoins(uid) {
-            const amount = document.getElementById('input-' + uid).value;
-            if(!amount) return alert("دخل القيمة");
-            
-            db.ref('users/' + uid + '/coins').transaction((current) => {
-                return (current || 0) + parseInt(amount);
-            }).then(() => alert("تم التحديث بنجاح!"));
+        // 2. Approval Logic
+        async function approvePayment(payId, userId) {
+            // Add 1000 coins to user
+            await db.ref('users/' + userId + '/coins').transaction(c => (c || 0) + 1000);
+            // Update payment status
+            await db.ref('payments/' + payId).update({ status: 'approved' });
+            alert("تم شحن الرصيد للمستخدم!");
+        }
+
+        async function rejectPayment(payId) {
+            await db.ref('payments/' + payId).update({ status: 'rejected' });
         }
     </script>
 </body>
