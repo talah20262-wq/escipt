@@ -2,59 +2,75 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>M.NAJM | Admin Control</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>لوحة تحكم الأدمن - Talla</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        body { background: #050505; color: white; }
-        .admin-card { background: #111; border: 1px solid #39ff14; }
+        body { background: #0a0a0a; color: #fff; font-family: Arial; padding: 20px; }
+        .admin-card { border: 1px solid #7000ff; padding: 20px; border-radius: 10px; background: #111; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #333; padding: 10px; text-align: center; }
+        th { background: #7000ff; }
+        input { padding: 5px; width: 60px; }
+        button { cursor: pointer; background: #7000ff; color: #fff; border: none; padding: 5px 10px; border-radius: 3px; }
     </style>
 </head>
-<body class="p-8">
-    <h1 class="text-3xl font-black text-[#39ff14] mb-8">إدارة نظام M.NAJM</h1>
+<body>
 
-    <div id="paymentsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Transactions will appear here -->
-    </div>
+<div class="admin-card">
+    <h2 style="color: #7000ff;">لوحة التحكم الشاملة (Admin)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID المستخدم</th>
+                <th>البريد الإلكتروني</th>
+                <th>الرصيد</th>
+                <th>تعديل الرصيد</th>
+            </tr>
+        </thead>
+        <tbody id="users-list">
+            <!-- البيانات تظهر هنا -->
+        </tbody>
+    </table>
+</div>
 
-    <script>
-        // Use your config here
-        firebase.initializeApp({ /* SAME CONFIG AS ABOVE */ });
-        const db = firebase.database();
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyB1N7DfU_VUbNeDzCz2Ke2vc7rPWuPGY_0",
+        databaseURL: "https://mahmodya-73e03-default-rtdb.firebaseio.com"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-        // 1. Listen for Pending Payments
-        db.ref('payments').orderByChild('status').equalTo('pending').on('value', snap => {
-            const list = document.getElementById('paymentsList');
-            list.innerHTML = "";
-            snap.forEach(child => {
-                const p = child.val();
-                list.innerHTML += `
-                    <div class="admin-card p-5 rounded-xl">
-                        <p class="text-sm text-gray-400">المستخدم: ${p.userEmail}</p>
-                        <img src="${p.imageURL}" class="w-full h-40 object-cover my-3 rounded-lg cursor-pointer" onclick="window.open('${p.imageURL}')">
-                        <div class="flex gap-2">
-                            <button onclick="approvePayment('${child.key}', '${p.userId}')" class="bg-green-600 flex-1 py-2 rounded-lg">قبول (1000 عملة)</button>
-                            <button onclick="rejectPayment('${child.key}')" class="bg-red-600 flex-1 py-2 rounded-lg">رفض</button>
-                        </div>
-                    </div>
-                `;
-            });
+    // جلب قائمة المستخدمين
+    db.ref('users').on('value', (snapshot) => {
+        const usersList = document.getElementById('users-list');
+        usersList.innerHTML = '';
+        snapshot.forEach((childSnapshot) => {
+            const userId = childSnapshot.key;
+            const data = childSnapshot.val();
+            usersList.innerHTML += `
+                <tr>
+                    <td>${userId.substring(0,5)}...</td>
+                    <td>${data.email}</td>
+                    <td id="bal-${userId}">${data.balance}</td>
+                    <td>
+                        <input type="number" id="input-${userId}" placeholder="القيمة">
+                        <button onclick="updateBalance('${userId}')">تحديث</button>
+                    </td>
+                </tr>
+            `;
         });
+    });
 
-        // 2. Approval Logic
-        async function approvePayment(payId, userId) {
-            // Add 1000 coins to user
-            await db.ref('users/' + userId + '/coins').transaction(c => (c || 0) + 1000);
-            // Update payment status
-            await db.ref('payments/' + payId).update({ status: 'approved' });
-            alert("تم شحن الرصيد للمستخدم!");
+    // دالة تحديث الرصيد من الأدمن
+    function updateBalance(uid) {
+        const newVal = document.getElementById('input-'+uid).value;
+        if(newVal !== "") {
+            db.ref('users/' + uid).update({ balance: parseInt(newVal) })
+              .then(() => alert("تم تحديث الرصيد بنجاح"));
         }
-
-        async function rejectPayment(payId) {
-            await db.ref('payments/' + payId).update({ status: 'rejected' });
-        }
-    </script>
+    }
+</script>
 </body>
 </html>
